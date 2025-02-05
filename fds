@@ -1,0 +1,20 @@
+  auto window_width = accessor.window_width();
+
+  // compute bitwise products
+  //
+  // We split the work by groups of generators so that a single chunk will process
+  // all the outputs for those generators. This minimizes the amount of host->device
+  // copying we need to do for the table of precomputed sums.
+  auto [chunk_first, chunk_last] =
+      basit::split(basit::index_range{0, n}.chunk_multiple(window_width), split_options);
+  auto num_chunks = static_cast<size_t>(std::distance(chunk_first, chunk_last));
+  basl::info("computing {} bitwise multiexponentiation products of length {} using {} chunks",
+             num_products, n, num_chunks);
+
+  // handle special case of a single chunk
+  if (num_chunks == 1) {
+    co_return co_await multiexponentiate_impl_single_chunk(res, accessor, output_bit_table, scalars,
+                                                           n, num_products);
+  }
+
+  // handle multiple chunks
